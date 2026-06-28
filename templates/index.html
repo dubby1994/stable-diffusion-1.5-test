@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stable Diffusion 1.5</title>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%236366f1'/%3E%3Cstop offset='1' stop-color='%238b5cf6'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='100' height='100' rx='22' fill='url(%23g)'/%3E%3Cpath d='M50 18 L82 50 L50 82 L18 50 Z' fill='none' stroke='white' stroke-width='6' stroke-linejoin='round'/%3E%3Ccircle cx='50' cy='50' r='10' fill='white'/%3E%3C/svg%3E">
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            font-family: -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif;
+            background: #0f1222;
+            color: #e6e8f0;
+            min-height: 100vh;
+        }
+        header {
+            padding: 20px 32px;
+            background: linear-gradient(135deg, #1a1f3a, #2d1b4e);
+            border-bottom: 1px solid #2a3050;
+        }
+        header h1 { margin: 0; font-size: 22px; font-weight: 600; }
+        header p { margin: 4px 0 0; font-size: 13px; color: #8a92b2; }
+
+        .container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+            padding: 24px 32px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        @media (max-width: 900px) {
+            .container { grid-template-columns: 1fr; }
+        }
+
+        .panel {
+            background: #181c30;
+            border: 1px solid #2a3050;
+            border-radius: 12px;
+            padding: 20px;
+        }
+        .panel h2 {
+            margin: 0 0 16px;
+            font-size: 15px;
+            color: #b8c0e0;
+            font-weight: 600;
+        }
+
+        label {
+            display: block;
+            font-size: 12px;
+            color: #8a92b2;
+            margin-bottom: 6px;
+        }
+        input[type="text"], input[type="number"], textarea, select {
+            width: 100%;
+            padding: 10px 12px;
+            background: #0f1222;
+            border: 1px solid #2a3050;
+            border-radius: 8px;
+            color: #e6e8f0;
+            font-size: 14px;
+            font-family: inherit;
+        }
+        textarea { min-height: 70px; resize: vertical; }
+        input:focus, textarea:focus, select:focus { outline: none; border-color: #6366f1; }
+
+        .row { margin-bottom: 14px; }
+        .row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+        /* 模式切换 */
+        .mode-tabs {
+            display: flex;
+            gap: 4px;
+            background: #0f1222;
+            border: 1px solid #2a3050;
+            border-radius: 8px;
+            padding: 4px;
+            margin-bottom: 16px;
+        }
+        .mode-tab {
+            flex: 1;
+            padding: 10px;
+            text-align: center;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            color: #8a92b2;
+            transition: all .2s;
+            user-select: none;
+        }
+        .mode-tab.active {
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            color: white;
+        }
+
+        .drop {
+            border: 2px dashed #2a3050;
+            border-radius: 10px;
+            padding: 24px;
+            text-align: center;
+            cursor: pointer;
+            transition: border-color .2s, background .2s;
+            color: #8a92b2;
+            font-size: 13px;
+        }
+        .drop:hover, .drop.drag { border-color: #6366f1; background: #1a2040; }
+        .drop input { display: none; }
+        .drop .hint { font-size: 11px; margin-top: 6px; color: #5a6080; }
+
+        .preview-wrap {
+            margin-top: 12px;
+            display: none;
+            align-items: flex-start;
+            gap: 8px;
+        }
+        .preview-wrap.show { display: flex; }
+        .preview {
+            max-width: 100%;
+            max-height: 200px;
+            border-radius: 8px;
+        }
+        .preview-clear {
+            background: #3a2030;
+            color: #ffb4b4;
+            border: 1px solid #5a2a3a;
+            border-radius: 6px;
+            padding: 4px 10px;
+            font-size: 12px;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+        .preview-clear:hover { background: #4a2840; }
+
+        /* 示例提示词 */
+        .examples {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-top: 6px;
+        }
+        .example-chip {
+            padding: 5px 11px;
+            background: #1a2040;
+            border: 1px solid #2a3050;
+            border-radius: 14px;
+            font-size: 12px;
+            color: #a8b0d0;
+            cursor: pointer;
+            transition: all .15s;
+            user-select: none;
+        }
+        .example-chip:hover {
+            border-color: #6366f1;
+            color: #e6e8f0;
+            background: #202858;
+        }
+
+        button.primary {
+            width: 100%;
+            padding: 14px;
+            margin-top: 8px;
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: opacity .2s, transform .05s;
+        }
+        button.primary:hover { opacity: .92; }
+        button.primary:active { transform: scale(.99); }
+        button.primary:disabled { opacity: .5; cursor: not-allowed; }
+
+        .result-img {
+            max-width: 100%;
+            border-radius: 8px;
+            display: block;
+        }
+        .placeholder {
+            text-align: center;
+            padding: 60px 20px;
+            color: #4a5070;
+            font-size: 13px;
+        }
+        .meta {
+            margin-top: 12px;
+            font-size: 12px;
+            color: #8a92b2;
+            background: #0f1222;
+            padding: 10px 12px;
+            border-radius: 6px;
+            line-height: 1.6;
+            word-break: break-all;
+        }
+        .spinner {
+            display: inline-block;
+            width: 14px; height: 14px;
+            border: 2px solid #6366f1;
+            border-top-color: transparent;
+            border-radius: 50%;
+            animation: spin .8s linear infinite;
+            vertical-align: middle;
+            margin-right: 8px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .toast {
+            position: fixed; top: 20px; right: 20px;
+            padding: 12px 18px;
+            background: #2d1b1b; color: #ffb4b4;
+            border: 1px solid #5a2a2a;
+            border-radius: 8px; font-size: 13px;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Stable Diffusion 1.5</h1>
+        <p>文本生成图片 · 图片+文本生成图片 · fp16 · CUDA</p>
+    </header>
+
+    <div class="container">
+        <section class="panel">
+            <h2>输入</h2>
+
+            <!-- 模式切换 -->
+            <div class="mode-tabs">
+                <div class="mode-tab active" data-mode="txt2img">仅文本生成</div>
+                <div class="mode-tab" data-mode="img2img">图片+文本生成</div>
+            </div>
+
+            <div class="row">
+                <label>提示词 Prompt *</label>
+                <textarea id="prompt" placeholder="例如: a futuristic city, neon lights, cyberpunk, highly detailed"></textarea>
+                <div class="examples" id="examples"></div>
+            </div>
+
+            <div class="row">
+                <label>负向提示词 Negative Prompt</label>
+                <textarea id="negative" placeholder="lowres, blurry, distorted, watermark">lowres, blurry, distorted, watermark, text, low quality</textarea>
+            </div>
+
+            <!-- 图片上传（仅 img2img 模式显示） -->
+            <div class="row" id="imageRow" style="display:none">
+                <label>输入图片</label>
+                <div class="drop" id="drop">
+                    <input type="file" id="file" accept="image/*">
+                    <div>点击或拖拽图片到此处上传</div>
+                    <div class="hint">不上传图片时将使用"仅文本"模式</div>
+                </div>
+                <div class="preview-wrap" id="previewWrap">
+                    <img class="preview" id="preview">
+                    <button class="preview-clear" id="clearImg">移除</button>
+                </div>
+            </div>
+
+            <!-- img2img 专属参数 -->
+            <div class="row-2" id="strengthRow" style="display:none">
+                <div class="row">
+                    <label>重绘强度 Strength (0-1)</label>
+                    <input type="number" id="strength" value="0.75" min="0" max="1" step="0.05">
+                </div>
+                <div class="row">
+                    <label>最长边像素 Max Side</label>
+                    <input type="number" id="maxSide" value="512" min="64" max="1024" step="64">
+                </div>
+            </div>
+
+            <!-- txt2img 专属参数 -->
+            <div class="row-2" id="sizeRow">
+                <div class="row">
+                    <label>宽度 Width</label>
+                    <input type="number" id="width" value="512" min="64" max="1024" step="64">
+                </div>
+                <div class="row">
+                    <label>高度 Height</label>
+                    <input type="number" id="height" value="512" min="64" max="1024" step="64">
+                </div>
+            </div>
+
+            <!-- 通用参数 -->
+            <div class="row">
+                <label>采样器 Sampler</label>
+                <select id="scheduler"></select>
+            </div>
+
+            <div class="row-2">
+                <div class="row">
+                    <label>引导系数 CFG Scale</label>
+                    <input type="number" id="cfg" value="7.5" min="1" max="20" step="0.5">
+                </div>
+                <div class="row">
+                    <label>推理步数 Steps</label>
+                    <input type="number" id="steps" value="50" min="1" max="100" step="1">
+                </div>
+            </div>
+
+            <div class="row">
+                <label>随机种子 Seed (空=随机)</label>
+                <input type="number" id="seed" placeholder="auto">
+            </div>
+
+            <button class="primary" id="btn">生成图片</button>
+        </section>
+
+        <section class="panel">
+            <h2>结果</h2>
+            <div id="resultArea">
+                <div class="placeholder">生成的图片将显示在这里</div>
+            </div>
+        </section>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <script>
+        const $ = (id) => document.getElementById(id);
+        let imageDataUrl = null;
+        let currentMode = 'txt2img';
+
+        // ---- 示例提示词 ----
+        const EXAMPLES = [
+            'a futuristic city, neon lights, cyberpunk, highly detailed',
+            'a cute cat sitting on a windowsill, soft sunlight, photorealistic',
+            'portrait of a woman, oil painting style, renaissance, dramatic lighting',
+            'mountain landscape at sunset, golden hour, lake reflection, 8k',
+            'a cozy coffee shop interior, warm lighting, plants, anime style',
+            'astronaut floating in space, stars, nebula, digital art',
+            'a majestic dragon flying over a medieval castle, epic, fantasy art',
+            'cherry blossom garden, japanese temple, spring, serene',
+        ];
+
+        (function initExamples() {
+            const container = $('examples');
+            EXAMPLES.forEach(text => {
+                const chip = document.createElement('span');
+                chip.className = 'example-chip';
+                chip.textContent = text.length > 32 ? text.slice(0, 30) + '...' : text;
+                chip.title = text;
+                chip.addEventListener('click', () => {
+                    $('prompt').value = text;
+                    $('prompt').focus();
+                });
+                container.appendChild(chip);
+            });
+        })();
+
+        // ---- 加载采样器列表 ----
+        (function initSchedulers() {
+            fetch('/schedulers').then(r => r.json()).then(data => {
+                const sel = $('scheduler');
+                Object.entries(data.schedulers).forEach(([key, label]) => {
+                    const opt = document.createElement('option');
+                    opt.value = key;
+                    opt.textContent = label;
+                    if (key === data.default) opt.selected = true;
+                    sel.appendChild(opt);
+                });
+            }).catch(() => {
+                const sel = $('scheduler');
+                const opt = document.createElement('option');
+                opt.value = 'dpmpp_2m_karras';
+                opt.textContent = 'DPM++ 2M Karras';
+                sel.appendChild(opt);
+            });
+        })();
+
+        // ---- 模式切换 ----
+        document.querySelectorAll('.mode-tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                currentMode = tab.dataset.mode;
+                document.querySelectorAll('.mode-tab').forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                updateModeUI();
+            });
+        });
+
+        function updateModeUI() {
+            const isImg2img = currentMode === 'img2img';
+            $('imageRow').style.display = isImg2img ? 'block' : 'none';
+            $('strengthRow').style.display = isImg2img ? 'grid' : 'none';
+            $('sizeRow').style.display = isImg2img ? 'none' : 'grid';
+        }
+
+        // ---- 图片上传 ----
+        const drop = $('drop'), fileInput = $('file'), preview = $('preview'),
+              previewWrap = $('previewWrap'), clearImg = $('clearImg');
+
+        function showFile(file) {
+            if (!file || !file.type.startsWith('image/')) return;
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                imageDataUrl = e.target.result;
+                preview.src = imageDataUrl;
+                previewWrap.classList.add('show');
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function clearImage() {
+            imageDataUrl = null;
+            preview.src = '';
+            previewWrap.classList.remove('show');
+            fileInput.value = '';
+        }
+
+        drop.addEventListener('click', () => fileInput.click());
+        fileInput.addEventListener('change', (e) => showFile(e.target.files[0]));
+        clearImg.addEventListener('click', clearImage);
+        ['dragover', 'dragenter'].forEach(ev =>
+            drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.add('drag'); }));
+        ['dragleave', 'drop'].forEach(ev =>
+            drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.remove('drag'); }));
+        drop.addEventListener('drop', (e) => {
+            if (e.dataTransfer.files.length) showFile(e.dataTransfer.files[0]);
+        });
+
+        // ---- Toast ----
+        function toast(msg) {
+            const t = $('toast');
+            t.textContent = msg; t.style.display = 'block';
+            setTimeout(() => t.style.display = 'none', 4000);
+        }
+
+        // ---- 生成 ----
+        $('btn').addEventListener('click', async () => {
+            const prompt = $('prompt').value.trim();
+            if (!prompt) { toast('请输入提示词'); return; }
+
+            const isImg2img = currentMode === 'img2img';
+            if (isImg2img && !imageDataUrl) {
+                toast('图片+文本模式需要上传图片；如无需图片请切到"仅文本生成"');
+                return;
+            }
+
+            const body = {
+                prompt,
+                negative_prompt: $('negative').value.trim(),
+                guidance_scale: parseFloat($('cfg').value),
+                num_inference_steps: parseInt($('steps').value),
+                scheduler: $('scheduler').value,
+                seed: $('seed').value || "",
+            };
+
+            if (isImg2img) {
+                body.image = imageDataUrl;
+                body.strength = parseFloat($('strength').value);
+                body.max_side = parseInt($('maxSide').value);
+            } else {
+                body.width = parseInt($('width').value);
+                body.height = parseInt($('height').value);
+            }
+
+            const btn = $('btn');
+            btn.disabled = true;
+            const originalText = btn.textContent;
+            btn.innerHTML = '<span class="spinner"></span>生成中...';
+            $('resultArea').innerHTML = '<div class="placeholder"><span class="spinner"></span>正在加载模型并生成，请耐心等待...</div>';
+
+            try {
+                const resp = await fetch('/generate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body),
+                });
+                const data = await resp.json();
+                if (!resp.ok) {
+                    throw new Error(data.error || ('HTTP ' + resp.status));
+                }
+                const p = data.params;
+                const modeLabel = p.mode === 'img2img' ? '图生图' : '文生图';
+                let metaParts = [
+                    '模式: ' + modeLabel,
+                    'seed: ' + data.seed,
+                    'size: ' + p.size[0] + 'x' + p.size[1],
+                    'steps: ' + p.num_inference_steps,
+                    'cfg: ' + p.guidance_scale,
+                    'sampler: ' + (p.scheduler || 'default'),
+                ];
+                if (p.mode === 'img2img') metaParts.push('strength: ' + p.strength);
+                metaParts.push('model: ' + p.model, 'device: ' + p.device);
+
+                $('resultArea').innerHTML =
+                    '<img class="result-img" src="' + data.image + '">' +
+                    '<div class="meta">' + metaParts.join(' · ') + '</div>';
+            } catch (err) {
+                $('resultArea').innerHTML = '<div class="placeholder" style="color:#ffb4b4">' + err.message + '</div>';
+            } finally {
+                btn.disabled = false;
+                btn.textContent = originalText;
+            }
+        });
+    </script>
+</body>
+</html>
