@@ -47,10 +47,6 @@ logger = logging.getLogger("sd-model")
 # 均为标准 SD 1.5 架构（unet/vae/text_encoder），可共用同一套加载逻辑。
 # key 为 ModelScope 模型 ID，value 为展示信息。
 MODELS: Dict[str, Dict[str, str]] = {
-    "AI-ModelScope/stable-diffusion-v1-5": {
-        "name": "Stable Diffusion 1.5",
-        "description": "通用基础模型，适合大多数场景",
-    },
     "AI-ModelScope/realistic-vision-v51": {
         "name": "Realistic Vision v5.1",
         "description": "写实人像与场景，照片级质感",
@@ -60,7 +56,7 @@ MODELS: Dict[str, Dict[str, str]] = {
         "description": "Midjourney 风格，提示词建议加 mdjrny-v4 style 前缀",
     },
 }
-DEFAULT_MODEL_ID = "AI-ModelScope/stable-diffusion-v1-5"
+DEFAULT_MODEL_ID = "AI-ModelScope/realistic-vision-v51"
 # 向后兼容别名（app.py 旧代码可能引用）
 MODEL_ID = DEFAULT_MODEL_ID
 
