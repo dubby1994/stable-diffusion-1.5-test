@@ -228,6 +228,12 @@
         <section class="panel">
             <h2>输入</h2>
 
+            <!-- 模型选择 -->
+            <div class="row">
+                <label>模型 Model</label>
+                <select id="model"></select>
+            </div>
+
             <!-- 模式切换 -->
             <div class="mode-tabs">
                 <div class="mode-tab active" data-mode="txt2img">仅文本生成</div>
@@ -350,6 +356,26 @@
             });
         })();
 
+        // ---- 加载模型列表 ----
+        (function initModels() {
+            fetch('/models').then(r => r.json()).then(data => {
+                const sel = $('model');
+                Object.entries(data.models).forEach(([key, info]) => {
+                    const opt = document.createElement('option');
+                    opt.value = key;
+                    opt.textContent = info.name + ' — ' + info.description;
+                    if (key === data.default) opt.selected = true;
+                    sel.appendChild(opt);
+                });
+            }).catch(() => {
+                const sel = $('model');
+                const opt = document.createElement('option');
+                opt.value = 'AI-ModelScope/stable-diffusion-v1-5';
+                opt.textContent = 'Stable Diffusion 1.5';
+                sel.appendChild(opt);
+            });
+        })();
+
         // ---- 加载采样器列表 ----
         (function initSchedulers() {
             fetch('/schedulers').then(r => r.json()).then(data => {
@@ -445,6 +471,7 @@
                 num_inference_steps: parseInt($('steps').value),
                 scheduler: $('scheduler').value,
                 seed: $('seed').value || "",
+                model: $('model').value,
             };
 
             if (isImg2img) {

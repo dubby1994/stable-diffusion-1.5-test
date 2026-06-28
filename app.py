@@ -86,8 +86,8 @@ def generate():
 
         if image_data:
             # ---- img2img 模式 ----
-            logger.info("Request /generate [img2img] | prompt=%r image_bytes=%d",
-                        prompt[:60], len(image_data))
+            logger.info("Request /generate [img2img] | model=%s prompt=%r image_bytes=%d",
+                        payload.get("model"), prompt[:60], len(image_data))
             init_image = _decode_image(image_data)
 
             result = sd_model.generate(
@@ -100,10 +100,12 @@ def generate():
                 seed=payload.get("seed"),
                 max_side=int(payload.get("max_side") or 512),
                 scheduler=payload.get("scheduler") or sd_model.DEFAULT_SCHEDULER,
+                model=payload.get("model"),
             )
         else:
             # ---- txt2img 模式 ----
-            logger.info("Request /generate [txt2img] | prompt=%r", prompt[:60])
+            logger.info("Request /generate [txt2img] | model=%s prompt=%r",
+                        payload.get("model"), prompt[:60])
 
             # 尺寸：优先用 width/height，否则用 max_side 作为正方形边长
             width = int(payload.get("width") or 0)
@@ -121,6 +123,7 @@ def generate():
                 width=width,
                 height=height,
                 scheduler=payload.get("scheduler") or sd_model.DEFAULT_SCHEDULER,
+                model=payload.get("model"),
             )
 
         return jsonify({
@@ -132,6 +135,9 @@ def generate():
     except sd_model.CUDAOutOfMemoryError:
         logger.exception("CUDA OOM")
         return jsonify({"error": "GPU 显存不足，请降低图片尺寸或减小 steps"}), 507
+    except sd_model.UnknownModelError as e:
+        logger.warning("Unknown model: %s", e)
+        return jsonify({"error": str(e)}), 400
     except sd_model.ModelScopeNotInstalledError as e:
         logger.error("modelscope not installed: %s", e)
         return jsonify({"error": "modelscope 包未安装，请先运行: pip install modelscope"}), 503
@@ -147,13 +153,18 @@ def generate():
 def health():
     return jsonify({
         "status": "ok",
-        "model": sd_model.MODEL_ID,
+        "model": sd_model.get_active_model_id(),
         "device": sd_model.DEVICE,
         "pipeline_loaded": sd_model.is_loaded(),
         "cuda_available": sd_model.cuda_available(),
         "modelscope_installed": sd_model.has_modelscope(),
         "time": datetime.now().isoformat(),
     })
+
+
+@app.route("/models")
+def models():
+    return jsonify(sd_model.get_models())
 
 
 @app.route("/schedulers")
